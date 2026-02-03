@@ -1,0 +1,265 @@
+export const QUERY_TEMPLATES: any = {
+    LIST_BILLS,
+    TOTAL_SPEND,
+    MONTHLY_SUMMARY,
+    BILLS_BY_PAYMENT_MODE,
+    BILLS_BY_VENDOR,
+    CATEGORY_BREAKDOWN,
+    // Semantic
+    SEMANTIC_SEARCH,
+    SEMANTIC_COMPARE,
+    // Mixed
+    AGGREGATION_WITH_EXPLANATION,
+    FILTER_WITH_EXPLANATION
+};
+
+function SEMANTIC_SEARCH(userId: string, plan: any, userQuery: string) {
+  const mongoMatch: any = { user_id: userId };
+
+  if (plan.entities?.category)
+    mongoMatch.category = plan.entities.category;
+
+  if (plan.time_range)
+    mongoMatch.bill_date = {
+      $gte: new Date(plan.time_range.from),
+      $lte: new Date(plan.time_range.to)
+    };
+
+  // Step 1: get candidate bill IDs
+  const pipeline = [
+    { $match: mongoMatch },
+    { $project: { _id: 1 } }
+  ];
+
+  return {
+    mongo_pipeline: pipeline,
+    vector_query: {
+      query: userQuery,
+      filter: {
+        user_id: userId,
+        category: plan.entities?.category || undefined
+      },
+      top_k: 5
+    }
+  };
+}
+
+
+function SEMANTIC_COMPARE(userId: string, plan: any, userQuery: string) {
+  return {
+    vector_query: {
+      query: userQuery,
+      filter: {
+        user_id: userId,
+        category: plan.entities.category
+      },
+      top_k: 10
+    }
+  };
+}
+
+
+function AGGREGATION_WITH_EXPLANATION(userId: string, plan: any, userQuery: string) {
+  // Aggregation Part
+  const aggregationPipeline = [
+    {
+      $match: {
+        user_id: userId,
+        category: plan.entities.category,
+        bill_date: {
+          $gte: new Date(plan.time_range.from),
+          $lte: new Date(plan.time_range.to)
+        }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        total_amount: { $sum: "$amount" },
+        bill_ids: { $push: "$_id" }
+      }
+    }
+  ];
+
+  // Semantic Part
+  const vectorQuery = {
+    query: userQuery,
+    filter: {
+      user_id: userId,
+      category: plan.entities.category
+    },
+    top_k: 5
+  };
+
+  return {
+    mongo_pipeline: aggregationPipeline,
+    vector_query: vectorQuery
+  };
+}
+
+function FILTER_WITH_EXPLANATION(userId: string, plan: any, userQuery: string) {
+  const pipeline = [
+    {
+      $match: {
+        user_id: userId,
+        category: plan.entities.category
+      }
+    }
+  ];
+
+  return {
+    mongo_pipeline: pipeline,
+    vector_query: {
+      query: "unusual charges",
+      filter: {
+        user_id: userId,
+        category: plan.entities.category
+      },
+      top_k: 3
+    }
+  };
+}
+
+
+function LIST_BILLS(userId: string, params: any) {
+    const match: any = { user_id: userId };
+
+    if (params.entities?.category)
+        match.category = params.entities.category;
+
+    if (params.entities?.subcategory)
+        match.subcategory = params.entities.subcategory;
+
+    if (params.filters?.amount)
+        match.amount = {
+            [mongoOp(params.filters.amount.operator)]: params.filters.amount.value
+        };
+
+    if (params.time_range) {
+        match.bill_date = {
+            $gte: new Date(params.time_range.from),
+            $lte: new Date(params.time_range.to)
+        };
+    }
+
+    return [
+        { $match: match },
+        { $sort: { bill_date: -1 } }
+    ];
+}
+
+function TOTAL_SPEND(userId: string, params: any) {
+    return [
+        {
+            $match: {
+                user_id: userId,
+                category: params.entities.category,
+                bill_date: {
+                    $gte: new Date(params.time_range.from),
+                    $lte: new Date(params.time_range.to)
+                }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                total_amount: { $sum: "$amount" }
+            }
+        }
+    ];
+}
+
+function MONTHLY_SUMMARY(userId: string, params: any) {
+    return [
+        {
+            $match: {
+                user_id: userId,
+                category: params.entities?.category,
+                bill_date: {
+                    $gte: new Date(params.time_range.from),
+                    $lte: new Date(params.time_range.to)
+                }
+            }
+        },
+        {
+            $group: {
+                _id: { $month: "$bill_date" },
+                total: { $sum: "$amount" }
+            }
+        },
+        { $sort: { "_id": 1 } }
+    ];
+}
+
+function BILLS_BY_PAYMENT_MODE(userId: string, params: any) {
+    return [
+        { $match: { user_id: userId } },
+        {
+            $lookup: {
+                from: "payments",
+                localField: "_id",
+                foreignField: "bill_id",
+                as: "payment"
+            }
+        },
+        { $unwind: "$payment" },
+        { $match: { "payment.mode": params.entities.payment_mode } }
+    ];
+}
+
+function BILLS_BY_VENDOR(userId: string, params: any) {
+    return [
+        {
+            $match: {
+                user_id: userId,
+                vendor: params.entities.vendor
+            }
+        },
+        { $sort: { bill_date: -1 } }
+    ];
+}
+
+function CATEGORY_BREAKDOWN(userId: string, params: any) {
+    return [
+        {
+            $match: {
+                user_id: userId,
+                bill_date: {
+                    $gte: new Date(params.time_range.from),
+                    $lte: new Date(params.time_range.to)
+                }
+            }
+        },
+        {
+            $group: {
+                _id: "$category",
+                total: { $sum: "$amount" }
+            }
+        },
+        { $sort: { total: -1 } }
+    ];
+}
+
+function mongoOp(op: string) {
+    const map: any = {
+        ">": "$gt",
+        ">=": "$gte",
+        "<": "$lt",
+        "<=": "$lte",
+        "=": "$eq",
+        "!=": "$ne"
+    };
+    return map[op];
+}
+
+function resolveQuery(plan: any, userId: string) {
+    const template = QUERY_TEMPLATES[plan.operation];
+    if (!template) throw new Error("Unsupported operation");
+    return template(userId, plan);
+}
+
+// if (plan.needs_rag) {
+//   const billIds = mongoResult.map(b => b._id);
+//   const context = vectorSearch(billIds);
+//   return llmAnswer(context, userQuery);
+// }

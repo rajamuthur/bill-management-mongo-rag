@@ -1,0 +1,18 @@
+langchain
+langchain-community
+langchain-groq
+pymongo
+pinecone
+pydantic
+python-dotenv
+ipykernel
+sentence-transformers
+fastapi[standard]
+pytesseract
+pdf2image
+Pillow
+python-multipart   # required for file uploads
+uuid               # builtin, just noting
+tqdm               # progress bars for OCR / embeddings
+tenacity           # retry LLM calls
+Chroma

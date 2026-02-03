@@ -1,0 +1,16 @@
+{
+  "query_type": "AGGREGATION",
+  "operation": "TOTAL_SPEND",
+  "confidence": 0.97,
+  "entities": {
+    "category": "Medical"
+  },
+  "filters": {},
+  "time_range": {
+    "from": "2024-01-01",
+    "to": "2024-12-31",
+    "granularity": "YEAR"
+  },
+  "group_by": null,
+  "needs_rag": false
+}

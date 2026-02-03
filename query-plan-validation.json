@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["query_type", "operation", "entities", "needs_rag"],
+  "properties": {
+    "query_type": {
+      "type": "string",
+      "enum": ["FILTER", "AGGREGATION", "SEMANTIC", "MIXED"]
+    },
+    "operation": { "type": "string" },
+    "confidence": { "type": "number" },
+    "entities": { "type": "object" },
+    "filters": { "type": "object" },
+    "time_range": { "type": ["object", "null"] },
+    "group_by": { "type": ["string", "null"] },
+    "needs_rag": { "type": "boolean" }
+  }
+}
