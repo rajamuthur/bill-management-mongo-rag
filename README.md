@@ -267,14 +267,6 @@ bill-management-rag-mongo/
 - Replace all API keys and sensitive data with your own
 - Use environment-specific configurations for production
 
-## 📝 License
-
-[Add your license here]
-
-## 🤝 Contributing
-
-[Add contribution guidelines here]
-
 ## 📧 Support
 
 For issues or questions, please [create an issue](your-repo-url/issues) on GitHub.
