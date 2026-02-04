@@ -269,7 +269,7 @@ bill-management-rag-mongo/
 
 ## 📧 Support
 
-For issues or questions, please [create an issue](your-repo-url/issues) on GitHub.
+For issues or questions, please [create an issue](https://github.com/rajamuthur/bill-management-mongo-rag/issues) on GitHub.
 
 ## Demo
 ![alt text](image-1.png)
